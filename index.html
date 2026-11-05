@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>UAE Rail Map</title>
+  <meta name="description" content="Interactive map of rail in the UAE: Dubai Metro, trams, Etihad Rail passenger trains and every line planned to 2032, with a timeline, animated trains and a travel-time explorer.">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23161a20'/%3E%3Cpath d='M6 22 L13 10 L19 18 L26 8' fill='none' stroke='%23d7272c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='10' r='2.6' fill='%23fff'/%3E%3Ccircle cx='19' cy='18' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="map" aria-label="Map of rail lines in the United Arab Emirates"></div>
+
+  <header class="topbar panel">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 23 L13 10 L19 18 L27 7" fill="none" stroke="var(--brand-line)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="10" r="2.8" fill="var(--text-1)"/><circle cx="19" cy="18" r="2.8" fill="var(--text-1)"/></svg>
+      <div>
+        <h1>UAE Rail</h1>
+        <p class="sub">Every line running today, and the network taking shape to 2032</p>
+      </div>
+    </div>
+    <div class="search" role="search">
+      <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+      <input id="search" type="search" placeholder="Search stations" autocomplete="off" spellcheck="false"
+             role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="Search stations">
+      <ul id="search-results" class="search-results" role="listbox" hidden></ul>
+    </div>
+  </header>
+
+  <nav class="modes panel" role="tablist" aria-label="View">
+    <button role="tab" id="tab-map" aria-selected="true" data-mode="map">Network</button>
+    <button role="tab" id="tab-explore" aria-selected="false" data-mode="explore">Travel times</button>
+    <button role="tab" id="tab-insights" aria-selected="false" data-mode="insights">Insights</button>
+  </nav>
+
+  <div class="toolbar panel" role="group" aria-label="Map options">
+    <button id="btn-trains" class="tool" aria-pressed="true" title="Animate trains">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="3" width="10" height="11" rx="3"/><path d="M7 17l-1.5 1.5M13 17l1.5 1.5M5 9h10"/><circle cx="7.5" cy="11.5" r=".6"/><circle cx="12.5" cy="11.5" r=".6"/></svg>
+      <span class="tool-label">Trains</span>
+    </button>
+    <button id="btn-theme" class="tool" title="Switch light or dark map">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z"/></svg>
+      <span class="tool-label">Theme</span>
+    </button>
+    <span class="tool-sep" aria-hidden="true"></span>
+    <button class="tool text" data-place="uae" title="Show the whole country">UAE</button>
+    <button class="tool text" data-place="dubai" title="Zoom to Dubai">Dubai</button>
+    <button class="tool text" data-place="abudhabi" title="Zoom to Abu Dhabi">Abu Dhabi</button>
+  </div>
+
+  <button id="btn-legend" class="legend-toggle panel" aria-expanded="false" aria-controls="legend">Lines</button>
+  <aside id="legend" class="panel legend" aria-label="Lines and map key"></aside>
+
+  <aside id="details" class="panel details" aria-live="polite" hidden></aside>
+
+  <section id="insights" class="panel insights" aria-labelledby="insights-title" hidden></section>
+
+  <footer class="timeline panel" aria-label="Timeline">
+    <button id="play" class="play" aria-label="Play the network's growth from 2006 to 2032">
+      <svg class="i-play" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4l10 6-10 6z"/></svg>
+      <svg class="i-pause" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4h3v12H6zM11 4h3v12h-3z"/></svg>
+    </button>
+    <div class="tl-main">
+      <div class="tl-head">
+        <div class="tl-year"><span id="year-label">2026</span><span id="year-tag" class="tag">Today</span></div>
+        <p id="milestone" class="milestone"></p>
+        <dl class="tl-stats">
+          <div><dt>Passenger rail</dt><dd id="stat-km">0 km</dd></div>
+          <div><dt>Stations open</dt><dd id="stat-stations">0</dd></div>
+          <div class="hide-sm"><dt>Being built</dt><dd id="stat-building">0 km</dd></div>
+        </dl>
+      </div>
+      <div class="tl-track">
+        <input id="year" type="range" min="2006" max="2032" step="1" value="2026" aria-label="Year" aria-valuetext="2026">
+        <div id="tl-ticks" class="tl-ticks" aria-hidden="true"></div>
+      </div>
+    </div>
+  </footer>
+
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  <div id="loading" class="loading" role="status">Loading the network…</div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
