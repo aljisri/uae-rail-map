@@ -1,0 +1,6 @@
+# Deploy only the site: index.html, css/, js/ and the built data files.
+scripts/
+data/osm/
+docs/
+README.md
+.gitignore

@@ -385,7 +385,7 @@ main().catch((err) => {
   const el = document.getElementById("loading");
   el.hidden = false;
   el.textContent = location.protocol === "file:"
-    ? "Open this page through a web server (for example: python3 -m http.server), not as a file."
+    ? "Open this page through a web server, not as a file: run python3 -m http.server 8000 --bind 127.0.0.1 inside the project folder."
     : "The map data could not be loaded. Please reload the page.";
 });
 

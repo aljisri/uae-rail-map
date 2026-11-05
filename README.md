@@ -41,13 +41,21 @@ Etihad Rail passenger stations: Abu Dhabi (Mohamed bin Zayed City) and Fujairah 
 
 ## Run it
 
-It is a static site with no build step. Serve the folder with any web server (opening `index.html` as a file will not work, because the page loads its data with `fetch`):
+It is a static site with no build step. Clone the repository and start a web server **from inside the project folder** (opening `index.html` as a file will not work, because the page loads its data with `fetch`):
 
 ```bash
-python3 -m http.server 8000
+git clone https://github.com/aljisri/uae-rail-map.git
 ```
 
-Then open <http://localhost:8000>.
+```bash
+cd uae-rail-map
+```
+
+```bash
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Then open <http://localhost:8000>. Run the server inside the project folder, or it will list whatever folder you are in instead. `--bind 127.0.0.1` keeps it private to your computer: without it, Python serves that folder to everyone on your network.
 
 To publish it with GitHub Pages, go to the repository's **Settings → Pages**, choose **Deploy from a branch**, and pick the branch and the `/ (root)` folder.
 
