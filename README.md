@@ -2,6 +2,8 @@
 
 An interactive map of every rail line in the United Arab Emirates, from the first Dubai Metro trains in 2009 to the network planned for 2032: metro, trams, Etihad Rail's new passenger trains, the Abu Dhabi to Dubai high-speed line and Hafeet Rail to Oman.
 
+**Live: <https://uae-rail-map.vercel.app>**
+
 ![Dubai's rail network at night: Red and Green lines in service, the Blue Line under construction, the Gold Line and high-speed rail planned](docs/dubai.jpg)
 
 ## What you can do
