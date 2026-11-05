@@ -1,0 +1,46 @@
+{
+  "ridership": {
+    "title": "Dubai Metro journeys per year",
+    "unit": "million",
+    "note": "2009 covers September to December only. 2020 reflects COVID-19 restrictions.",
+    "source": {"label": "RTA figures via Wikipedia", "url": "https://en.wikipedia.org/wiki/Dubai_Metro"},
+    "values": [[2009, 6.1], [2010, 38.1], [2011, 69.0], [2012, 109.0], [2013, 137.1], [2014, 164.0], [2015, 178.1],
+               [2016, 191.3], [2017, 200.1], [2018, 204.0], [2019, 203.0], [2020, 113.1], [2021, 151.0], [2022, 225.1],
+               [2023, 260.0], [2024, 275.4], [2025, 294.7]]
+  },
+  "journeys": {
+    "title": "Rail against the road",
+    "note": "Rail: published journey times. Road: free-flow driving time between the same points from OSRM (OpenStreetMap data), with no traffic and no border wait.",
+    "sources": [
+      {"label": "Etihad Rail times (The National)", "url": "https://www.thenationalnews.com/news/uae/2026/01/08/etihad-rail-reveals-more-passenger-stations-ahead-of-service-launch-this-year/"},
+      {"label": "Hafeet Rail times (Gulf News)", "url": "https://gulfnews.com/living-in-uae/transport/hafeet-rail-what-to-know-about-the-uae-oman-train-route-1.500222149"},
+      {"label": "OSRM routing", "url": "https://project-osrm.org/"}
+    ],
+    "rows": [
+      {"pair": "Abu Dhabi – Dubai", "via": "Etihad Rail", "line": "etihad", "rail": 57, "car": 77, "points": "MBZ City station to Al Yalayis station"},
+      {"pair": "Abu Dhabi – Dubai", "via": "High-speed rail", "line": "hsr", "rail": 30, "car": 97, "points": "Reem Island to Al Jaddaf"},
+      {"pair": "Abu Dhabi – Fujairah", "via": "Etihad Rail", "line": "etihad", "rail": 105, "car": 163, "points": "MBZ City station to Fujairah station"},
+      {"pair": "Abu Dhabi – Sohar", "via": "Hafeet Rail", "line": "hafeet", "rail": 100, "car": 169, "points": "MBZ City station to Sohar Port"},
+      {"pair": "Al Ain – Sohar", "via": "Hafeet Rail", "line": "hafeet", "rail": 47, "car": 95, "points": "Al Ain city centre to Sohar Port"}
+    ]
+  },
+  "projects": {
+    "title": "From announcement to opening",
+    "note": "Construction bars start at the first confirmed year of works. Etihad Rail stage 2 was under way by January 2021; its start year is not confirmed.",
+    "rows": [
+      {"name": "Palm Monorail", "line": "monorail", "announced": 2005, "construction": 2006, "opened": 2009.33},
+      {"name": "Red Line", "line": "red", "announced": 2005, "construction": 2006.2, "opened": 2009.69},
+      {"name": "Green Line", "line": "green", "announced": 2005, "construction": 2006.2, "opened": 2011.69},
+      {"name": "Dubai Tram", "line": "tram", "announced": 2006, "construction": 2008, "opened": 2014.87},
+      {"name": "Etihad Rail stage 1", "line": "freight", "announced": 2009, "construction": 2011.8, "opened": 2016.0},
+      {"name": "Route 2020", "line": "red", "announced": 2016, "construction": 2016.5, "opened": 2021.42},
+      {"name": "Etihad Rail stage 2", "line": "freight", "announced": 2009, "construction": 2021.0, "opened": 2023.15},
+      {"name": "Etihad Rail passenger", "line": "etihad", "announced": 2023, "construction": null, "opened": 2026.5},
+      {"name": "Hafeet Rail", "line": "hafeet", "announced": 2022.7, "construction": 2024.5, "opened": 2027.9, "openedLabel": "trials late 2027"},
+      {"name": "Blue Line", "line": "blue", "announced": 2023.9, "construction": 2025.45, "opened": 2029.69},
+      {"name": "High-speed rail", "line": "hsr", "announced": 2024.95, "construction": null, "opened": 2030.5, "openedLabel": "by 2030"},
+      {"name": "Abu Dhabi Tram", "line": "adtram", "announced": 2025.7, "construction": null, "opened": 2030.5, "openedLabel": "2030"},
+      {"name": "Gold Line", "line": "gold", "announced": 2026.3, "construction": null, "opened": 2032.69}
+    ]
+  }
+}
