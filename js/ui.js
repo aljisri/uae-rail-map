@@ -1,5 +1,5 @@
 // Legend, line and station cards, station search and the map tooltip.
-import { stateAt, formatOpening } from "./network.js";
+import { stateAt, formatOpening, formatWhen, nameIndexAt } from "./network.js";
 import { LINE_COLORS } from "./palette.js";
 
 // tiny DOM helper: text always goes in as text nodes
@@ -55,11 +55,20 @@ export function lineWhen(line, state) {
   return `Due ${opened.length === 4 ? y : formatOpening(line.opened).replace(/^\d+ /, "")}`;
 }
 
+// "Wikipedia: Equiti (Dubai Metro)" or "thenationalnews.com"
+export function sourceLabel(u) {
+  const url = new URL(u);
+  if (url.hostname.endsWith("wikipedia.org")) {
+    return `Wikipedia: ${decodeURIComponent(url.pathname.split("/").pop()).replace(/_/g, " ")}`;
+  }
+  return url.hostname.replace("www.", "");
+}
+
 export class UI {
-  constructor({ net, onSelectLine, onSelectStation, onExploreFrom, onToggleLine, onHoverLine }) {
+  constructor({ net, onSelectLine, onSelectStation, onExploreFrom, onToggleLine, onHoverLine, onSetYear, onShowRenamed }) {
     this.net = net;
     this.theme = "dark";
-    this.cb = { onSelectLine, onSelectStation, onExploreFrom, onToggleLine, onHoverLine };
+    this.cb = { onSelectLine, onSelectStation, onExploreFrom, onToggleLine, onHoverLine, onSetYear, onShowRenamed };
     this.legendEl = document.getElementById("legend");
     this.details = document.getElementById("details");
     this.tooltip = document.getElementById("tooltip");
@@ -100,6 +109,16 @@ export class UI {
         box.append(row);
       }
       root.append(box);
+    }
+    const events = this.net.renameEvents();
+    if (events.length) {
+      const count = new Set(events.map((e) => e.st.id)).size;
+      root.append(h("div", { class: "lg-group" }, h("h2", {}, "Station names"),
+        h("button", { class: "lg-line", onclick: () => this.cb.onShowRenamed(),
+          "aria-label": `Renamed stations: ${count} stations, ${events.length} name changes. Browse them` },
+        h("span", { class: "lg-ic", "aria-hidden": "true" }, "Aa"),
+        h("span", { class: "nm" }, "Renamed stations"),
+        h("span", { class: "when" }, `${count} · ${events.length} changes`))));
     }
     const key = h("div", { class: "lg-key", role: "list", "aria-label": "Line styles" },
       h("div", { role: "listitem" }, swatch(null, "operational"), "In service"),
@@ -150,7 +169,7 @@ export class UI {
         const openY = own && own.opened ? String(own.opened).slice(0, 4) : "";
         return h("li", {}, h("button", { onclick: () => this.cb.onSelectStation(sid) },
           h("span", { class: `dot${ic ? " ic" : ""}`, style: `--c:${colors[id]}` }),
-          h("span", {}, st.name),
+          h("span", {}, this.net.nameAt(st, date)),
           h("span", { class: "meta" }, ic ? `${lines.length} lines` : openY)));
       }));
 
@@ -184,21 +203,94 @@ export class UI {
     });
     const isOpen = this.net.stationState(st, date) === "operational";
     const systems = [...new Set(st.lines.map((l) => this.net.line[l.id].system))].join(" · ");
+    const then = this.net.nameAt(st, date);
+    const renamed = then !== st.name;   // the name on this date is not today's name
+    const history = this.nameHistory(st, date);
     const body = [
       this.closeButton(onClose),
       h("p", { class: "eyebrow" }, `${systems} station`),
-      h("h2", { id: "details-title" }, st.name),
-      st.name_ar ? h("p", { class: "ar", lang: "ar", dir: "rtl" }, st.name_ar) : null,
+      h("h2", { id: "details-title" }, then),
+      // the Arabic name belongs to today's name, so it is only shown with it
+      st.name_ar && !renamed ? h("p", { class: "ar", lang: "ar", dir: "rtl" }, st.name_ar) : null,
+      renamed ? h("div", { class: "row" }, h("span", { class: "chip" }, `Called ${st.name} today`)) : null,
       h("ul", { class: "served", "aria-label": "Lines" }, served),
       st.note ? h("p", { class: "note" }, st.note) : null,
       st.approx ? h("p", { class: "note" }, "Location is approximate: the exact site has not been published or mapped yet.") : null,
+      // a station with a name history leads with it, so it is not pushed below the fold on a phone
+      st.names ? history : null,
       h("div", { class: "row" },
         h("button", { class: "btn", onclick: () => this.cb.onExploreFrom(id), disabled: !isOpen || null,
           title: isOpen ? null : "Pick a later year to travel from this station" },
           "Travel times from here")),
       !isOpen ? h("p", { class: "hint" }, "This station is not open in the selected year. Move the timeline forward to plan journeys from it.") : null,
+      st.names ? null : history,
     ];
     this.open(body);
+  }
+
+  // The station's names in order, the one in effect on the selected date marked. Each row
+  // jumps the timeline to a year when that name was in use.
+  nameHistory(st, date) {
+    const year = date.slice(0, 4);
+    if (!st.names) {
+      const metro = st.lines.some((l) => l.id === "red" || l.id === "green");
+      return metro ? h("p", { class: "hint" }, "No name changes are recorded for this station.") : null;
+    }
+    const names = st.names;
+    const cur = nameIndexAt(st, date);
+    const last = names.length - 1;
+    const isNow = +year === this.net.asOfYear;
+    const opened = String(st.lines.map((l) => l.opened).filter(Boolean).sort()[0] || "");
+    const rows = names.map((e, i) => {
+      const next = names[i + 1];
+      const from = e.from ? formatWhen(e.from) : e.pre_opening ? "Planning name" : `Opened ${formatWhen(opened.slice(0, 7))}`;
+      const to = next ? formatWhen(next.from) : "today";
+      const y = this.net.yearForName(st, i);
+      const tags = [];
+      if (i === cur) tags.push(isNow ? "Today" : `In ${year}`);
+      if (i === last && !(i === cur && isNow)) tags.push("Today");
+      return h("li", { class: i === cur ? "on" : null, "aria-current": i === cur ? "true" : null },
+        h("button", { disabled: y == null || null, onclick: () => this.cb.onSetYear(y),
+          title: y == null ? "Not shown at the end of any year on the timeline" : `Show the map as in ${y}` },
+        h("span", { class: "nd" }),
+        h("span", { class: "nt" },
+          h("strong", {}, e.n),
+          h("span", { class: "np" }, `${from} to ${to}`),
+          e.note ? h("small", {}, e.note) : null),
+        tags.length ? h("span", { class: "tags" }, tags.map((t) => h("span", { class: "tag" }, t))) : null));
+    });
+    return h("section", { class: "names", "aria-label": "Name history" },
+      h("h3", {}, `Name history · ${names.length - 1} change${names.length > 2 ? "s" : ""}`),
+      h("ol", {}, rows),
+      h("p", { class: "hint" }, "Dates are shown to the precision the sources agree on. Select a name to see the map as it was then."),
+      st.name_src && st.name_src.length ? h("p", { class: "sources" }, "Sources: ",
+        ...st.name_src.flatMap((u, i) => [i ? ", " : "", h("a", { href: u, target: "_blank", rel: "noopener" }, sourceLabel(u))])) : null);
+  }
+
+  // Every renamed station, newest rename first.
+  showRenamed(date, onClose) {
+    const year = date.slice(0, 4);
+    const events = this.net.renameEvents();
+    const byStation = new Map();
+    for (const e of events) if (!byStation.has(e.st.id)) byStation.set(e.st.id, e);   // newest per station
+    const inYear = events.filter((e) => e.from.slice(0, 4) === year);
+    const rows = [...byStation.values()].map((latest) => {
+      const st = latest.st;
+      const chain = st.names.map((e) => e.n).join(" \u2192 ");
+      const here = inYear.filter((e) => e.st.id === st.id).length;
+      return h("li", {}, h("button", { onclick: () => this.cb.onSelectStation(st.id, { fly: true }) },
+        h("span", { class: "nt" }, h("strong", {}, st.name), h("small", {}, chain)),
+        h("span", { class: "meta" }, here ? h("span", { class: "tag" }, `Renamed in ${year}`) : formatWhen(latest.from))));
+    });
+    this.open([
+      this.closeButton(onClose),
+      h("p", { class: "eyebrow" }, "Station names"),
+      h("h2", { id: "details-title" }, "Renamed stations"),
+      h("p", { class: "summary" }, `${byStation.size} stations have changed name ${events.length} times since 2009.`
+        + (inYear.length ? ` ${inYear.length} of those changes were in ${year}.` : "")),
+      h("ul", { class: "renamed", "aria-label": "Renamed stations" }, rows),
+      h("p", { class: "hint" }, "Covers Dubai Metro and Palm Monorail stations. Names and dates come from Wikipedia, Gulf News and RTA announcements."),
+    ]);
   }
 
   open(children) {
@@ -232,30 +324,35 @@ export class UI {
       items = this.net.stations
         .map((s) => {
           const n = norm(s.name), sh = norm(s.short), ar = s.name_ar || "";
-          const score = n === q || sh === q || ar === qa ? 0
+          let score = n === q || sh === q || ar === qa ? 0
             : n.startsWith(q) || sh.startsWith(q) || ar.startsWith(qa) ? 1
             : n.includes(q) || sh.includes(q) || ar.includes(qa) ? 2 : -1;
-          return { s, score };
+          // a name the station used to have also finds it ("Noor Bank" finds Garmin)
+          let former = null;
+          if (score < 0) {
+            former = (s.names || []).find((e) => norm(e.n).includes(q)) || null;
+            if (former) score = 3;
+          }
+          return { s, score, former };
         })
         .filter((x) => x.score >= 0)
         .sort((a, b) => a.score - b.score || a.s.name.localeCompare(b.s.name))
-        .slice(0, 8)
-        .map((x) => x.s);
+        .slice(0, 8);
       active = items.length ? 0 : -1;
       if (!items.length) list.append(h("li", { class: "empty", role: "option", "aria-disabled": "true" }, "No station matches"));
-      items.forEach((s, i) => {
+      items.forEach(({ s, former }, i) => {
         const systems = [...new Set(s.lines.map((l) => this.net.line[l.id].name))].join(", ");
         list.append(h("li", { id: `opt-${i}`, role: "option", "aria-selected": String(i === active),
           onmousedown: (e) => { e.preventDefault(); choose(i); } },
           swatch(LINE_COLORS[this.theme][s.lines[0].id], "operational"),
-          h("span", { class: "name" }, s.name, h("small", {}, systems))));
+          h("span", { class: "name" }, s.name, h("small", {}, former ? `Formerly ${former.n} \u00b7 ${systems}` : systems))));
       });
       list.hidden = false;
       input.setAttribute("aria-expanded", "true");
       input.setAttribute("aria-activedescendant", active >= 0 ? `opt-${active}` : "");
     };
     const choose = (i) => {
-      const s = items[i];
+      const s = items[i] && items[i].s;
       if (!s) return;
       input.value = "";
       list.hidden = true;

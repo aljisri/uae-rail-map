@@ -657,6 +657,35 @@ def resolve(ref):
 
 URBAN = {"red", "green", "blue", "gold", "tram", "monorail", "adtram"}
 
+_DATE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
+
+
+def apply_name_history():
+    """Attach dated name histories (config.NAME_HISTORY) to stations and check them.
+
+    The last entry is the name shown today. OpenStreetMap is sometimes behind (it still
+    has "Deira City Centre"), so the history wins and the difference is reported.
+    """
+    for sid, entries in C.NAME_HISTORY.items():
+        if sid not in stations:
+            raise SystemExit(f"NAME_HISTORY: unknown station id {sid}")
+        st = stations[sid]
+        if len(entries) < 2 or entries[0]["from"] is not None:
+            raise SystemExit(f"NAME_HISTORY {sid}: needs at least two names, the first with from=None")
+        dates = [e["from"] for e in entries[1:]]
+        if any(not d or not _DATE.match(d) for d in dates):
+            raise SystemExit(f"NAME_HISTORY {sid}: every later name needs a date like 2020, 2020-11 or 2020-11-24")
+        padded = [(d + "-01-01")[:10] if len(d) == 4 else (d + "-01")[:10] if len(d) == 7 else d for d in dates]
+        if padded != sorted(padded):
+            raise SystemExit(f"NAME_HISTORY {sid}: dates are out of order: {dates}")
+        if padded[-1] > C.AS_OF:
+            raise SystemExit(f"NAME_HISTORY {sid}: {dates[-1]} is after the data date {C.AS_OF}")
+        if entries[-1]["n"] != st["name"]:
+            print(f"  note: {sid}: OpenStreetMap name '{st['name']}' replaced by '{entries[-1]['n']}' from the history")
+            st["name"] = entries[-1]["n"]
+        st["names"] = entries
+        st["name_src"] = C.NAME_SOURCES.get(sid, [])
+
 
 def finalize_edges():
     """Give every edge simplified coordinates and the dates of the track it runs on."""
@@ -722,6 +751,8 @@ def main():
     services = build_services()
 
     walks = [{"a": resolve(a), "b": resolve(b), "min": m} for a, b, m in C.WALK_LINKS]
+
+    apply_name_history()
 
     # tidy station records
     for st in stations.values():

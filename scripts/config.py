@@ -569,3 +569,114 @@ FREIGHT_STAGES = {
     # Al Dhafra passenger stations scheduled from 30 November 2026
     "link": {"opened": "2026-11-30", "construction": 2023},
 }
+
+
+# --------------------------------------------------------------------------------------
+# Station name history (Dubai Metro and Palm Monorail)
+# --------------------------------------------------------------------------------------
+# Each entry is a name and the date it took effect. `frm` is "YYYY", "YYYY-MM" or
+# "YYYY-MM-DD"; None means "from the start" (the station's opening, or earlier).
+# Where sources disagree by a day (the two Wikipedia rename tables often do) only the month is
+# kept; where only a year is documented, only the year. Entries the sources do not fully settle
+# carry a note, which the app shows.
+#
+# Sources read for this section (November 2026):
+#   - Wikipedia: the Red Line and Green Line articles (rename tables) and each station's page
+#   - Gulf News guide to Dubai Metro station renames (updated September 2026)
+#   - The National, 7 Sept 2026 (Garmin) and 4 Aug 2021 (Centrepoint, Max)
+#   - Gulf News / RTA, 14 April 2025 (GGICO to Al Garhoud)
+def N(name, frm=None, note=None, pre=False):
+    entry = {"n": name, "from": frm}
+    if note:
+        entry["note"] = note
+    if pre:
+        entry["pre_opening"] = True
+    return entry
+
+
+_WP = "https://en.wikipedia.org/wiki/"
+_RED = _WP + "Red_Line_(Dubai_Metro)"
+_GREEN = _WP + "Green_Line_(Dubai_Metro)"
+_GN = "https://gulfnews.com/living-in-uae/transport/dubai-metro-stations-renamed-full-list-1.500065961"
+
+NAME_HISTORY = {
+    "dm-centrepoint": [N("Rashidiya"), N("Centrepoint", "2021-08")],
+    "dm-max": [N("Al Jafiliya"), N("Max", "2021-08")],
+    "dm-burjuman": [N("Khalid Bin Al Waleed"),
+                    N("BurJuman", "2012", "Sources give 13 November and 12 December 2012.")],
+    "dm-adcb": [N("Al Karama"), N("ADCB", "2014-09")],
+    "dm-garmin": [
+        N("Noor Bank", None, "Wikipedia's rename table also lists “Noor Islamic Bank”, without dates."),
+        N("Al Safa", "2020-11"),
+        N("Onpassive", "2023-01"),
+        N("Garmin", "2026-09", "Announced 7 September 2026 under a 10-year naming-rights deal; signs and apps are being "
+                               "updated through November 2026."),
+    ],
+    "dm-equiti": [N("First Gulf Bank"), N("First Abu Dhabi Bank", "2017-09"), N("Umm Al Sheif", "2020-11"),
+                  N("Equiti", "2022-04")],
+    "dm-insurance-market": [
+        N("Sharaf DG", None, "Opening name inferred: the Sharaf DG (Green Line) page says Mashreq replaced it on "
+                             "18 May 2020, while another Wikipedia page lists the two names the other way round."),
+        N("Mashreq", "2020-05"),
+        N("Insurance Market", "2024-09"),
+    ],
+    "dm-al-fardan-exchange": [N("Nakheel"), N("Al Khail", "2020-11"), N("Al Fardan Exchange", "2025-03")],
+    "dm-sobha-realty": [N("Dubai Marina"), N("DAMAC Properties", "2014-09"), N("Dubai Marina", "2020-11"),
+                        N("Sobha Realty", "2021-08")],
+    "dm-dmcc": [N("Jumeirah Lakes Towers"), N("DMCC", "2018-08")],
+    "dm-national-paints": [N("Nakheel Harbour & Tower"), N("Jebel Ali", "2020-05"), N("National Paints", "2025-06")],
+    "dm-life-pharmacy": [N("Jebel Ali"), N("UAE Exchange", "2015-06"), N("Life Pharmacy", "2025-05")],
+    "dm-energy": [N("DUBAL"), N("Energy", "2015")],
+    "dm-danube": [
+        N("Jebel Ali Industrial", None, "Planning and construction name; the station opened as Danube in December 2012.",
+          pre=True),
+        N("Danube", "2012-11"),
+    ],
+    "dm-al-garhoud": [
+        N("GGICO", None, "Wikipedia also lists “Garhoud” as an earlier name, without dates."),
+        N("Al Garhoud", "2025-04-14", "Renamed after its location, effective 14 April 2025."),
+    ],
+    # id keeps OpenStreetMap's older spelling; the name shown is the current one
+    "dm-deira-city-centre": [N("Deira City Centre"), N("City Centre Deira", "2022-06")],
+    "dm-expo-city-dubai": [
+        N("Expo 2020"),
+        N("Expo City Dubai", "2024-03", "Date taken from Wikipedia, which marks it as uncited; no RTA announcement found."),
+    ],
+    "dm-gold-souq": [N("Palm Deira"), N("Gold Souq", "2020-05")],
+    "dm-sharaf-dg": [N("Al Fahidi"), N("Sharaf DG", "2020-11")],
+    "dm-e": [N("Etisalat"), N("Etisalat by e&", "2023-02"), N("e&", "2024-09")],
+    "pm-palm-jumeirah-mall": [
+        N("Nakheel Mall"),
+        N("Palm Jumeirah Mall", "2025-09", "The mall was renamed on 3 September 2025 and the station name follows it "
+                                          "(shown on Wikipedia; no transit-authority notice found)."),
+    ],
+}
+
+NAME_SOURCES = {
+    "dm-centrepoint": [_WP + "Centrepoint_(Dubai_Metro)", _RED,
+                       "https://thenationalnews.com/uae/transport/2021/08/04/dubais-rta-changes-names-of-two-metro-stations"],
+    "dm-max": [_WP + "Max_(Dubai_Metro)", _RED,
+               "https://thenationalnews.com/uae/transport/2021/08/04/dubais-rta-changes-names-of-two-metro-stations"],
+    "dm-burjuman": [_WP + "BurJuman_(Dubai_Metro)", _RED],
+    "dm-adcb": [_WP + "ADCB_(Dubai_Metro)", _RED],
+    "dm-garmin": [_WP + "Onpassive_(Dubai_Metro)",
+                  "https://www.thenationalnews.com/news/uae/2026/09/07/dubais-onpassive-metro-station-renamed-garmin-under-10-year-deal/",
+                  _GN],
+    "dm-equiti": [_WP + "Equiti_(Dubai_Metro)", _RED, _GN],
+    "dm-insurance-market": [_WP + "Insurance_Market_(Dubai_Metro)", _WP + "Sharaf_DG_(Dubai_Metro)", _RED, _GN],
+    "dm-al-fardan-exchange": [_WP + "Al_Fardan_Exchange_(Dubai_Metro)", _RED, _GN],
+    "dm-sobha-realty": [_WP + "Sobha_Realty_(Dubai_Metro)", _RED],
+    "dm-dmcc": [_WP + "DMCC_(Dubai_Metro)", _RED],
+    "dm-national-paints": [_WP + "National_Paints_(Dubai_Metro)", _RED, _GN],
+    "dm-life-pharmacy": [_WP + "Life_Pharmacy_(Dubai_Metro)", _RED, _GN],
+    "dm-energy": [_WP + "Energy_(Dubai_Metro)", _RED],
+    "dm-danube": [_WP + "Danube_(Dubai_Metro)", _RED],
+    "dm-al-garhoud": [_WP + "GGICO_(Dubai_Metro)", "https://gulfnews.com/uae/dubai-rta-announces-renaming-of-ggico-metro-station-1.500091092"],
+    "dm-deira-city-centre": [_WP + "City_Centre_Deira_(Dubai_Metro)", _RED],
+    "dm-expo-city-dubai": [_WP + "Expo_2020_(Dubai_Metro)"],
+    "dm-gold-souq": [_WP + "Gold_Souq_(Dubai_Metro)", _GN],
+    "dm-sharaf-dg": [_WP + "Sharaf_DG_(Dubai_Metro)", _GREEN, _GN],
+    "dm-e": [_WP + "E%26_(Dubai_Metro)", _GREEN, _GN],
+    "pm-palm-jumeirah-mall": [_WP + "Palm_Jumeirah_Monorail",
+                              "https://www.thenationalnews.com/lifestyle/2025/09/03/dubais-nakheel-mall-renamed-palm-jumeirah-mall"],
+}

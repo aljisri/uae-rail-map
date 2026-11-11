@@ -64,7 +64,7 @@ export class Explorer {
         properties: {
           id, origin, color: ramp[bucketOf(min)], state: "operational", interchange: origin,
           intercity: s.lines.some((l) => !this.net.line[l.id].urban),
-          text: origin ? s.short || s.name : `${s.short || s.name} · ${fmtMin(min)}`,
+          text: origin ? this.net.displayName(s, date) : `${this.net.displayName(s, date)} · ${fmtMin(min)}`,
           rank: Math.round(min),
         },
         geometry: { type: "Point", coordinates: s.coord },
@@ -120,7 +120,7 @@ export class Explorer {
         leg.line === "walk" ? h("span", { class: "key", style: "border-top-style:dotted;border-color:currentColor" })
           : h("span", { class: "key", style: `border-color:${LINE_COLORS[theme][leg.line]}` }),
         // a walk names the exact building; a ride can use the short city name
-        `${name}${to ? ` to ${leg.line === "walk" ? to.name : to.short || to.name}` : ""}, ${fmtMin(leg.min)}`);
+        `${name}${to ? ` to ${leg.line === "walk" ? this.net.nameAt(to, this.getDate()) : this.net.displayName(to, this.getDate())}` : ""}, ${fmtMin(leg.min)}`);
     });
   }
 
@@ -128,10 +128,10 @@ export class Explorer {
     const st = this.net.station[id];
     const best = this.result && this.result.best.get(id);
     if (!st || !best) return null;
-    if (id === this.origin) return [h("strong", {}, st.name), h("div", {}, "Starting point")];
+    if (id === this.origin) return [h("strong", {}, this.net.nameAt(st, this.getDate())), h("div", {}, "Starting point")];
     const path = this.routeTo(id);
     return [
-      h("strong", {}, st.name),
+      h("strong", {}, this.net.nameAt(st, this.getDate())),
       h("span", { class: "big" }, fmtMin(best.min)),
       h("div", {}, path.changes === 0 ? "No changes" : `${path.changes} change${path.changes > 1 ? "s" : ""}`),
       ...this.describe(path),
@@ -162,7 +162,7 @@ export class Explorer {
     if (mode === "closed") {
       const opens = st.lines.map((l) => l.opened).filter(Boolean).sort()[0];
       this.ui.open([...head,
-        h("h2", { id: "details-title" }, st.name),
+        h("h2", { id: "details-title" }, this.net.nameAt(st, date)),
         h("p", {}, `This station is not open in ${year}.`,
           opens ? ` It is due ${String(opens).length === 4 ? "in " : "on "}${formatOpening(opens)}.` : " Its opening date has not been announced."),
         h("p", { class: "hint" }, "Move the timeline forward, or pick another station.")]);
@@ -185,12 +185,12 @@ export class Explorer {
           onclick: () => this.setOrigin(id),
           onkeydown: (e) => { if (e.key === "Enter") this.setOrigin(id); },
         },
-        h("td", {}, h("span", { class: "sw", style: `background:${ramp[bucketOf(v.min)]}` }), s.name),
+        h("td", {}, h("span", { class: "sw", style: `background:${ramp[bucketOf(v.min)]}` }), this.net.nameAt(s, date)),
         h("td", { class: "num" }, String(path ? path.changes : 0)),
         h("td", { class: "num" }, fmtMin(v.min)));
       })));
     this.ui.open([...head,
-      h("h2", { id: "details-title" }, `From ${st.name}`),
+      h("h2", { id: "details-title" }, `From ${this.net.nameAt(st, date)}`),
       h("div", { class: "ramp", role: "img", "aria-label": "Colour key: darker or brighter is closer" },
         ramp.map((c, i) => h("div", {}, h("span", { style: `background:${c}` }), h("small", {}, TIME_LABELS[i])))),
       h("dl", { class: "reach" },

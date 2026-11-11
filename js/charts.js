@@ -1,6 +1,7 @@
 // Insights panel: KPI tiles and four charts (D3). Every chart has hover details and a table view.
 import { SERIES, CHART_INK, LINE_COLORS } from "./palette.js";
 import { h } from "./ui.js";
+import { formatWhen, decimalYear } from "./network.js";
 
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
 
@@ -58,6 +59,10 @@ export class Insights {
           h("div", { class: "delta" }, `+${(((v1 - v0) / v0) * 100).toFixed(0)}% on ${y1 - 1}`))),
       this.figure("growth", "How the network grows", "Passenger route km in service at the end of each year. Two scales: city rail is a tenth the size of intercity rail.", this.growthLegend()),
       this.figure("projects", this.data.projects.title, "Each project from announcement to opening.", this.projectsLegend(), this.data.projects.note),
+      this.figure("renames", "Stations keep changing name", this.renameSummary(), null,
+        "Dubai Metro and Palm Monorail stations only. Dates are from Wikipedia, Gulf News and RTA announcements; each station's card lists its sources."),
+      this.figure("names", "Station names through time", "Every station that has changed name, and how long each name lasted. Select a name to see the map as it was then.",
+        this.namesLegend()),
       h("div", { class: "two-up" },
         this.figure("ridership", this.data.ridership.title, "Million journeys a year.", null, this.data.ridership.note, this.data.ridership.source),
         this.figure("journeys", this.data.journeys.title, "Minutes, station to station.", this.journeysLegend(), this.data.journeys.note)),
@@ -81,7 +86,11 @@ export class Insights {
 
   renderCharts() {
     const theme = this.getTheme();
-    const draw = { growth: () => this.drawGrowth(theme), projects: () => this.drawProjects(theme), ridership: () => this.drawRidership(theme), journeys: () => this.drawJourneys(theme) };
+    const draw = {
+      growth: () => this.drawGrowth(theme), projects: () => this.drawProjects(theme),
+      renames: () => this.drawRenames(theme), names: () => this.drawNames(theme),
+      ridership: () => this.drawRidership(theme), journeys: () => this.drawJourneys(theme),
+    };
     for (const [id, fn] of Object.entries(draw)) {
       const host = document.getElementById(`chart-${id}`);
       if (!host) continue;
@@ -105,6 +114,26 @@ export class Insights {
       h("li", {}, h("span", { class: "k", style: `background:${ink.accent};height:8px` }), "Under construction"),
       h("li", {}, h("span", { class: "k dot", style: `background:${ink.accent}` }), "Opened"),
       h("li", {}, h("span", { class: "k dot", style: `border:2px solid ${ink.accent};background:transparent` }), "Due to open"));
+  }
+
+  namesLegend() {
+    const ink = CHART_INK[this.getTheme()];
+    return h("ul", { class: "chart-legend" },
+      h("li", {}, h("span", { class: "k", style: `background:${ink.accent}` }), "Name today"),
+      h("li", {}, h("span", { class: "k", style: `background:${ink.muted}` }), "Earlier name"));
+  }
+
+  // "32 name changes at 21 stations since 2009. 8 were in 2020: 3 in May and 5 in November."
+  renameSummary() {
+    const events = this.net.renameEvents();
+    const stations = new Set(events.map((e) => e.st.id)).size;
+    const byYear = d3.rollup(events, (v) => v, (e) => e.from.slice(0, 4));
+    const [peakYear, peak] = [...byYear.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+    const months = d3.rollups(peak.filter((e) => e.from.length >= 7), (v) => v.length, (e) => e.from.slice(5, 7)).sort((a, b) => a[0] - b[0]);
+    const monthName = (m) => new Date(Date.UTC(2000, +m - 1, 1)).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+    const detail = months.length > 1 && months.reduce((n, [, c]) => n + c, 0) === peak.length
+      ? `: ${months.map(([m, c]) => `${c} in ${monthName(m)}`).join(" and ")}` : "";
+    return `${events.length} name changes at ${stations} stations since 2009. ${peak.length} of them were in ${peakYear}${detail}.`;
   }
 
   journeysLegend() {
@@ -323,15 +352,124 @@ export class Insights {
     });
   }
 
+  // ----------------------------------------------------------- 5. renames per year
+  drawRenames(theme) {
+    const host = document.getElementById("chart-renames");
+    const ink = CHART_INK[theme];
+    const events = this.net.renameEvents();
+    const byYear = d3.group(events, (e) => +e.from.slice(0, 4));
+    const years = d3.range(2009, this.net.asOfYear + 1);
+    const width = host.clientWidth, height = 190, m = { t: 26, r: 8, b: 22, l: 30 };
+    const peak = d3.max(years, (yv) => (byYear.get(yv) || []).length);
+    const x = d3.scaleBand().domain(years).range([m.l, width - m.r]).padding(0.25);
+    const y = d3.scaleLinear().domain([0, peak]).nice(4).range([height - m.b, m.t]);
+    const svg = d3.select(host).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
+      .attr("aria-label", `Station name changes per year, 2009 to ${this.net.asOfYear}. Use the table view for the list.`);
+    const ticks = y.ticks(4).filter(Number.isInteger);
+    svg.append("g").attr("class", "grid").attr("transform", `translate(${m.l},0)`)
+      .call(d3.axisLeft(y).tickValues(ticks).tickSize(-(width - m.l - m.r)).tickFormat("")).call((g) => g.select(".domain").remove());
+    svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues(ticks).tickSize(0))
+      .call((g) => g.select(".domain").remove()).call((g) => g.selectAll("text").attr("dx", -4));
+    const step = width > 520 ? 1 : 3;
+    svg.append("g").attr("transform", `translate(0,${height - m.b})`)
+      .call(d3.axisBottom(x).tickValues(years.filter((yv) => (yv - 2009) % step === 0)).tickSizeOuter(0));
+    const bw = Math.min(24, x.bandwidth()), r = Math.min(4, bw / 2);
+    // 4px rounded data end, square at the baseline; the busiest year is the story, the rest recede
+    const bar = (yv) => {
+      const n = (byYear.get(yv) || []).length;
+      const x0 = x(yv) + (x.bandwidth() - bw) / 2, y0 = y(n), y1 = y(0);
+      return `M${x0},${y1}V${y0 + r}Q${x0},${y0} ${x0 + r},${y0}H${x0 + bw - r}Q${x0 + bw},${y0} ${x0 + bw},${y0 + r}V${y1}Z`;
+    };
+    for (const yv of years) {
+      const list = byYear.get(yv) || [];
+      const g = svg.append("g").attr("tabindex", 0)
+        .attr("aria-label", `${yv}: ${list.length} name change${list.length === 1 ? "" : "s"}${list.length ? ", " + list.map((e) => `${e.prev} to ${e.to}`).join("; ") : ""}`);
+      if (list.length) g.append("path").attr("d", bar(yv)).attr("fill", list.length === peak ? ink.accent : ink.muted);
+      if (list.length === peak) {
+        g.append("text").attr("x", Math.min(width - m.r - 24, Math.max(m.l + 24, x(yv) + x.bandwidth() / 2))).attr("y", y(peak) - 7)
+          .attr("text-anchor", "middle").attr("class", "label-strong").text(`${peak} in ${yv}`);
+      }
+      g.append("rect").attr("x", x(yv) - 2).attr("width", x.bandwidth() + 4).attr("y", m.t).attr("height", height - m.t - m.b).attr("fill", "transparent")
+        .on("pointermove", (ev) => this.tip(ev, [h("strong", {}, String(yv)),
+          ...(list.length ? list.slice(0, 10).map((e) => h("div", { class: "tt-row" }, `${formatWhen(e.from)}: ${e.prev} \u2192 ${e.to}`)) : [h("div", {}, "No renames recorded")]),
+          list.length > 10 ? h("div", {}, `and ${list.length - 10} more`) : null]))
+        .on("pointerleave", () => this.hideTip());
+    }
+  }
+
+  // Stations with a name history, most names first.
+  renamedStations() {
+    const firstChange = (st) => st.names[1].from;
+    return this.net.stations.filter((st) => st.names)
+      .sort((a, b) => b.names.length - a.names.length || (firstChange(a) < firstChange(b) ? -1 : 1) || a.name.localeCompare(b.name));
+  }
+
+  // ------------------------------------------------------ 6. names through time
+  drawNames(theme) {
+    const host = document.getElementById("chart-names");
+    const ink = CHART_INK[theme];
+    const stations = this.renamedStations();
+    const width = host.clientWidth, rowH = 24;
+    const labelW = Math.max(96, Math.min(150, width * 0.26));
+    const m = { t: 8, r: 12, b: 24, l: labelW + 8 };
+    const height = m.t + stations.length * rowH + m.b;
+    const x = d3.scaleLinear().domain([2009, 2027]).range([m.l, width - m.r]);
+    const todayX = decimalYear(this.net.asOf);
+    const svg = d3.select(host).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
+      .attr("aria-label", "Timeline of names for each renamed station. Use the table view for the full list.");
+    const ticks = [2010, 2014, 2018, 2022, 2026];
+    svg.append("g").attr("class", "grid").attr("transform", `translate(0,${height - m.b})`)
+      .call(d3.axisBottom(x).tickValues(ticks).tickSize(-(height - m.t - m.b)).tickFormat("")).call((g) => g.select(".domain").remove());
+    svg.append("g").attr("transform", `translate(0,${height - m.b})`).call(d3.axisBottom(x).tickValues(ticks).tickFormat(d3.format("d")).tickSizeOuter(0));
+    // the map's selected year: names are those in force at the end of that year
+    const year = this.getYear();
+    const marker = year === this.net.asOfYear ? todayX : year + 1;
+    svg.append("line").attr("x1", x(marker)).attr("x2", x(marker)).attr("y1", m.t - 2).attr("y2", height - m.b).attr("stroke", ink.text).attr("stroke-width", 1.5);
+    stations.forEach((st, i) => {
+      const top = m.t + i * rowH;
+      const opened = decimalYear(String(st.lines.map((l) => l.opened).filter(Boolean).sort()[0]));
+      const g = svg.append("g").attr("tabindex", 0)
+        .attr("aria-label", `${st.name}: ${st.names.map((e) => e.n).join(", then ")}`);
+      g.append("text").attr("x", labelW).attr("y", top + rowH / 2 + 4).attr("text-anchor", "end").text(st.name);
+      st.names.forEach((e, k) => {
+        const next = st.names[k + 1];
+        const start = k === 0 ? opened : decimalYear(e.from);
+        const end = next ? decimalYear(next.from) : todayX;
+        if (end <= start) return;            // a planning name that never ran in service
+        const current = k === st.names.length - 1;
+        const x0 = x(start) + 1, w = Math.max(2, x(end) - x(start) - 2);
+        g.append("rect").attr("x", x0).attr("y", top + 4).attr("width", w).attr("height", rowH - 8).attr("rx", 3)
+          .attr("fill", current ? ink.accent : ink.muted);
+        // a name is printed inside only when it fits with padding; otherwise the tooltip and table carry it
+        if (w > e.n.length * 5.9 + 14) {
+          g.append("text").attr("x", x0 + 7).attr("y", top + rowH / 2 + 4).style("font-size", "10.5px").style("font-weight", 600)
+            .style("fill", current ? ink.onAccent : ink.onMuted).style("pointer-events", "none").text(e.n);
+        }
+        const when = `${k === 0 ? "from opening" : formatWhen(e.from)} to ${next ? formatWhen(next.from) : "today"}`;
+        const yearFor = this.net.yearForName(st, k);
+        g.append("rect").attr("x", x0 - 1).attr("y", top).attr("width", w + 2).attr("height", rowH).attr("fill", "transparent")
+          .style("cursor", yearFor ? "pointer" : "default")
+          .on("pointermove", (ev) => this.tip(ev, [h("strong", {}, e.n), h("div", {}, `${st.name} station`), h("div", {}, when),
+            e.note ? h("div", {}, e.note) : null, yearFor ? h("div", {}, `Click to see the map in ${yearFor}`) : null]))
+          .on("pointerleave", () => this.hideTip())
+          .on("click", () => { if (yearFor) this.onYear(yearFor); });
+      });
+    });
+  }
+
   // --------------------------------------------------------------- tables
   table(id) {
-    const T = (heads, rows) => h("table", { class: "chart-table" },
-      h("thead", {}, h("tr", {}, heads.map((x, i) => h("th", { scope: "col", class: i ? "num" : null }, x)))),
-      h("tbody", {}, rows.map((r) => h("tr", {}, r.map((c, i) => h("td", { class: i ? "num" : null }, c))))));
+    const T = (heads, rows, text = []) => h("table", { class: "chart-table" },
+      h("thead", {}, h("tr", {}, heads.map((x, i) => h("th", { scope: "col", class: i && !text.includes(i) ? "num" : null }, x)))),
+      h("tbody", {}, rows.map((r) => h("tr", {}, r.map((c, i) => h("td", { class: i && !text.includes(i) ? "num" : null }, c))))));
     if (id === "growth") return T(["Year", "Dubai Metro", "Trams, monorail", "Intercity", "High-speed"],
       this.growth.map((d) => [d.year, fmt(d.metro), fmt(d.light), fmt(d.intercity), fmt(d.hsr)]));
     if (id === "projects") return T(["Project", "Announced", "Construction", "Opening"],
       this.data.projects.rows.map((r) => [r.name, Math.floor(r.announced), r.construction ? Math.floor(r.construction) : "not confirmed", r.openedLabel || Math.floor(r.opened)]));
+    if (id === "renames") return T(["Date", "Station", "Change"],
+      this.net.renameEvents().slice().reverse().map((e) => [formatWhen(e.from), e.st.name, `${e.prev} \u2192 ${e.to}`]), [1, 2]);
+    if (id === "names") return T(["Station today", "Names, with the date each began"],
+      this.renamedStations().map((st) => [st.name, st.names.map((e, i) => (i ? `${e.n} (${formatWhen(e.from)})` : e.n)).join(" \u2192 ")]), [1]);
     if (id === "ridership") return T(["Year", "Journeys (million)"], this.data.ridership.values.map(([y, v]) => [y, v.toFixed(1)]));
     if (id === "journeys") return T(["Journey", "Rail (min)", "Road (min)"],
       this.data.journeys.rows.map((r) => [`${r.pair} via ${r.via}`, r.rail, r.car]));

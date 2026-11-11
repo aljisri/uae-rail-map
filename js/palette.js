@@ -54,8 +54,8 @@ export const SERIES = {
   dark: ["#3987e5", "#d95926", "#199e70", "#c98500"],
 };
 export const CHART_INK = {
-  light: { muted: "#b9b6ad", accent: "#2a78d6", text: "#52514e", surface: "#fcfcfb" },
-  dark: { muted: "#5f5e58", accent: "#3987e5", text: "#c3c2b7", surface: "#161a20" },
+  light: { muted: "#b9b6ad", accent: "#2a78d6", text: "#52514e", surface: "#fcfcfb", onAccent: "#ffffff", onMuted: "#0b0b0b" },
+  dark: { muted: "#5f5e58", accent: "#3987e5", text: "#c3c2b7", surface: "#161a20", onAccent: "#ffffff", onMuted: "#f0efec" },
 };
 
 export function bucketOf(minutes) {

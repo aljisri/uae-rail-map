@@ -25,7 +25,7 @@ if (explicitTheme) document.documentElement.dataset.theme = explicitTheme;
 // --------------------------------------------------------------- url state
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
-  return { year: +p.get("year") || null, mode: p.get("view"), station: p.get("station"), line: p.get("line") };
+  return { year: +p.get("year") || null, mode: p.get("view"), station: p.get("station"), line: p.get("line"), list: p.get("list") };
 }
 
 // keep fitted views clear of the floating panels
@@ -52,6 +52,7 @@ async function main() {
   let mode = "map";
   document.body.dataset.mode = mode;
   let selected = null; // { type: "line" | "station", id }
+  let listing = false; // the "renamed stations" list is open in the details panel
   let trainsOn = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const map = new maplibregl.Map({
@@ -79,6 +80,8 @@ async function main() {
     onSelectStation: (id, opts = {}) => (mode === "explore" ? explorer.setOrigin(id) : selectStation(id, opts)),
     onExploreFrom: (id) => setMode("explore", id),
     onHoverLine: (id) => layers.highlight(id || (selected && selected.type === "line" ? selected.id : null)),
+    onSetYear: (y) => timeline.set(y, true),
+    onShowRenamed: () => showRenamed(),
   });
   ui.theme = theme;
 
@@ -121,6 +124,7 @@ async function main() {
     ui.renderLegend(date, theme);
     if (mode === "explore") explorer.update();
     else if (mode === "map" && selected) reopenSelection();
+    else if (mode === "map" && listing) ui.showRenamed(date, clearSelection);
     if (mode === "insights") insights.render();
     writeHash();
   }
@@ -131,8 +135,20 @@ async function main() {
     else ui.showStation(selected.id, date, theme, clearSelection);
   }
 
+  function showRenamed() {
+    if (mode !== "map") setMode("map");
+    selected = null;
+    listing = true;
+    layers.highlight(null);
+    ui.selectedLine = null;
+    ui.showRenamed(date, clearSelection);
+    ui.renderLegend(date, theme);
+    writeHash();
+  }
+
   function selectLine(id) {
     if (mode !== "map") setMode("map");
+    listing = false;
     selected = { type: "line", id };
     layers.highlight(id);
     ui.showLine(id, date, theme, clearSelection);
@@ -142,6 +158,7 @@ async function main() {
 
   function selectStation(id, { fly = false } = {}) {
     if (mode !== "map") setMode("map");
+    listing = false;
     selected = { type: "station", id };
     layers.highlight(null);
     ui.selectedLine = null;
@@ -157,6 +174,7 @@ async function main() {
 
   function clearSelection() {
     selected = null;
+    listing = false;
     layers.highlight(null);
     ui.close();
     ui.renderLegend(date, theme);
@@ -171,6 +189,7 @@ async function main() {
     document.body.dataset.mode = mode;
     for (const tab of document.querySelectorAll(".modes [role=tab]")) tab.setAttribute("aria-selected", String(tab.dataset.mode === mode));
     ui.hideTooltip();
+    if (mode !== "map") listing = false;
     if (mode === "explore") {
       ui.close();
       layers.highlight(null);
@@ -184,7 +203,9 @@ async function main() {
       layers.setTrainsVisible(trainsOn);
     } else {
       layers.setTrainsVisible(trainsOn);
-      if (selected) reopenSelection(); else ui.close();
+      if (selected) reopenSelection();
+      else if (listing) ui.showRenamed(date, clearSelection);
+      else ui.close();
     }
     ui.renderLegend(date, theme);
     writeHash();
@@ -196,6 +217,7 @@ async function main() {
     if (mode !== "map") p.set("view", mode);
     if (mode === "explore" && explorer.origin) p.set("station", explorer.origin);
     else if (selected) p.set(selected.type, selected.id);
+    else if (listing) p.set("list", "renamed");
     const hash = p.toString();
     history.replaceState(null, "", hash ? `#${hash}` : location.pathname + location.search);
   }
@@ -223,7 +245,8 @@ async function main() {
       const s = net.station[st.properties.id];
       const lines = net.stationLinesAt(s, date);
       ui.showTooltip(e.point, [
-        h("strong", {}, s.name),
+        h("strong", {}, net.nameAt(s, date)),
+        s.names && net.nameAt(s, date) !== s.name ? h("div", {}, `Called ${s.name} today`) : null,
         ...lines.map((l) => h("div", { class: "tt-row" }, h("span", { class: "key", style: `border-color:${LINE_COLORS[theme][l.id]}` }),
           `${net.line[l.id].name}${l.state === "operational" ? "" : `, ${STATE_TEXT[l.state].toLowerCase()}`}`)),
         s.approx ? h("div", {}, "Approximate location") : null,
@@ -352,6 +375,7 @@ async function main() {
       if (mode !== "map") setMode("map");
       if (net.station[s.station]) selectStation(s.station);
       else if (net.line[s.line]) selectLine(s.line);
+      else if (s.list === "renamed") showRenamed();
     }
   }
 

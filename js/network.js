@@ -27,6 +27,38 @@ export function formatOpening(d) {
   return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+// ------------------------------------------------------------------ station names
+// A name entry's `from` is "YYYY", "YYYY-MM" or "YYYY-MM-DD" (null = since the station opened).
+// It takes effect at the start of that period, so a rename in 2020 shows at the end of 2020.
+const startOf = (f) => (f.length === 4 ? `${f}-01-01` : f.length === 7 ? `${f}-01` : f);
+
+// Index of the name in effect on a date (0 if the station has no history).
+export function nameIndexAt(st, date) {
+  let idx = 0;
+  (st.names || []).forEach((e, i) => { if (e.from && startOf(e.from) <= date) idx = i; });
+  return idx;
+}
+
+// "2012", "Nov 2020" or "14 Apr 2025", matching the precision the sources give.
+export function formatWhen(f) {
+  if (!f) return "";
+  if (f.length === 4) return f;
+  if (f.length === 7) {
+    const [y, m] = f.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
+  }
+  return formatOpening(f);
+}
+
+// Decimal year for charts: a bare year sits mid-year, a month sits just inside it.
+export function decimalYear(f) {
+  const y = +f.slice(0, 4);
+  if (f.length === 4) return y + 0.5;
+  const m = +f.slice(5, 7) - 1;
+  if (f.length === 7) return y + m / 12 + 0.04;
+  return y + (m + (+f.slice(8, 10) - 1) / 31) / 12;
+}
+
 export class Network {
   constructor(data) {
     this.data = data;
@@ -62,6 +94,36 @@ export class Network {
 
   dateFor(year) {
     return year === this.asOfYear ? this.asOf : `${year}-12-31`;
+  }
+
+  // The name a station had on a date (its current name if no history is recorded).
+  nameAt(st, date) {
+    return st.names ? st.names[nameIndexAt(st, date)].n : st.name;
+  }
+
+  // Short name for labels and lists: Etihad Rail stations have a short city name.
+  displayName(st, date) {
+    return st.short || this.nameAt(st, date);
+  }
+
+  // The first year on the timeline in which name number `idx` is the one shown, or null.
+  yearForName(st, idx) {
+    for (let y = 2006; y <= 2032; y++) if (nameIndexAt(st, this.dateFor(y)) === idx) return y;
+    return null;
+  }
+
+  // Every rename in the data, newest first: { st, from, prev, to, note }.
+  renameEvents() {
+    if (!this._renames) {
+      const out = [];
+      for (const st of this.stations) {
+        (st.names || []).forEach((e, i) => {
+          if (i > 0) out.push({ st, from: e.from, prev: st.names[i - 1].n, to: e.n, note: e.note });
+        });
+      }
+      this._renames = out.sort((a, b) => (startOf(b.from) < startOf(a.from) ? -1 : 1));
+    }
+    return this._renames;
   }
 
   lineState(lineId, date) {
@@ -111,11 +173,18 @@ export class Network {
       const state = lines.reduce((s, l) => better(s, l.state), null);
       const interchange = lines.length > 1;
       const intercity = lines.some((l) => !this.line[l.id].urban);
+      // the name as it was on this date; in the year of a rename, add the old name underneath
+      let label = this.displayName(st, date);
+      if (st.names && !st.short) {
+        const i = nameIndexAt(st, date);
+        const e = st.names[i];
+        if (i > 0 && e.from && e.from.slice(0, 4) === date.slice(0, 4)) label += `\n(was ${st.names[i - 1].n})`;
+      }
       features.push({
         type: "Feature",
         id: index,
         properties: {
-          id: st.id, label: st.short || st.name, state, interchange, intercity,
+          id: st.id, label, state, interchange, intercity,
           color: interchange ? ink : colors[lines[0].id],
           rank: (interchange ? 0 : 10) + (intercity ? 0 : 5) + RANK[state],
           approx: !!st.approx,
