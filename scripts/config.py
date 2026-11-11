@@ -572,7 +572,7 @@ FREIGHT_STAGES = {
 
 
 # --------------------------------------------------------------------------------------
-# Station name history (Dubai Metro and Palm Monorail)
+# Station name history (Dubai Metro, Palm Monorail and Etihad Rail; no renames found for the Dubai Tram)
 # --------------------------------------------------------------------------------------
 # Each entry is a name and the date it took effect. `frm` is "YYYY", "YYYY-MM" or
 # "YYYY-MM-DD"; None means "from the start" (the station's opening, or earlier).
@@ -645,6 +645,13 @@ NAME_HISTORY = {
     "dm-gold-souq": [N("Palm Deira"), N("Gold Souq", "2020-05")],
     "dm-sharaf-dg": [N("Al Fahidi"), N("Sharaf DG", "2020-11")],
     "dm-e": [N("Etisalat"), N("Etisalat by e&", "2023-02"), N("e&", "2024-09")],
+    # Etihad Rail: the only recorded change. Earlier lists called Dubai's station "Jumeirah Golf Estates".
+    "er-dubai": [
+        N("Jumeirah Golf Estates", None, "Working name in announcements; the earliest source found is January 2026. "
+                                         "The station never opened under it.", pre=True),
+        N("Dubai (Al Yalayis)", "2026-08", "First reported from signage at the site on 5 August 2026; "
+                                           "the station opened on 30 September 2026."),
+    ],
     "pm-palm-jumeirah-mall": [
         N("Nakheel Mall"),
         N("Palm Jumeirah Mall", "2025-09", "The mall was renamed on 3 September 2025 and the station name follows it "
@@ -653,6 +660,8 @@ NAME_HISTORY = {
 }
 
 NAME_SOURCES = {
+    "er-dubai": ["https://gulfnews.com/uae/dubais-etihad-rail-passenger-station-to-be-named-al-yalayis-station-1.500631739",
+                 "https://www.thenationalnews.com/news/uae/2026/01/08/etihad-rail-reveals-more-passenger-stations-ahead-of-service-launch-this-year/"],
     "dm-centrepoint": [_WP + "Centrepoint_(Dubai_Metro)", _RED,
                        "https://thenationalnews.com/uae/transport/2021/08/04/dubais-rta-changes-names-of-two-metro-stations"],
     "dm-max": [_WP + "Max_(Dubai_Metro)", _RED,

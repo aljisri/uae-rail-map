@@ -233,8 +233,9 @@ export class UI {
   nameHistory(st, date) {
     const year = date.slice(0, 4);
     if (!st.names) {
-      const metro = st.lines.some((l) => l.id === "red" || l.id === "green");
-      return metro ? h("p", { class: "hint" }, "No name changes are recorded for this station.") : null;
+      // researched: Dubai Metro, Palm Monorail, Dubai Tram and Etihad Rail
+      const covered = st.lines.some((l) => ["red", "green", "monorail", "tram", "etihad"].includes(l.id));
+      return covered ? h("p", { class: "hint" }, "No name changes are recorded for this station.") : null;
     }
     const names = st.names;
     const cur = nameIndexAt(st, date);
@@ -289,7 +290,7 @@ export class UI {
       h("p", { class: "summary" }, `${byStation.size} stations have changed name ${events.length} times since 2009.`
         + (inYear.length ? ` ${inYear.length} of those changes were in ${year}.` : "")),
       h("ul", { class: "renamed", "aria-label": "Renamed stations" }, rows),
-      h("p", { class: "hint" }, "Covers Dubai Metro and Palm Monorail stations. Names and dates come from Wikipedia, Gulf News and RTA announcements."),
+      h("p", { class: "hint" }, "Covers Dubai Metro, Palm Monorail and Etihad Rail stations; no renames were found for the Dubai Tram. Names and dates come from Wikipedia, Gulf News and RTA announcements."),
     ]);
   }
 

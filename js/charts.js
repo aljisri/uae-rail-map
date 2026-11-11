@@ -60,7 +60,7 @@ export class Insights {
       this.figure("growth", "How the network grows", "Passenger route km in service at the end of each year. Two scales: city rail is a tenth the size of intercity rail.", this.growthLegend()),
       this.figure("projects", this.data.projects.title, "Each project from announcement to opening.", this.projectsLegend(), this.data.projects.note),
       this.figure("renames", "Stations keep changing name", this.renameSummary(), null,
-        "Dubai Metro and Palm Monorail stations only. Dates are from Wikipedia, Gulf News and RTA announcements; each station's card lists its sources."),
+        "Dubai Metro, Palm Monorail and Etihad Rail stations; no Dubai Tram renames were found. Dates are from Wikipedia, Gulf News and RTA announcements; each station's card lists its sources."),
       this.figure("names", "Station names through time", "Every station that has changed name, and how long each name lasted. Select a name to see the map as it was then.",
         this.namesLegend()),
       h("div", { class: "two-up" },
